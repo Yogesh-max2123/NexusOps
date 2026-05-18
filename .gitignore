@@ -1,0 +1,25 @@
+# --- EXISTING CRITICAL FILES ---
+.env
+venv/
+__pycache__/
+*.pth
+
+# --- DATA & LOGS (Important for MLOps) ---
+*.csv
+*.log
+*.sqlite3
+*.db
+
+# --- PYTHON CACHE & ARTIFACTS ---
+*.pyc
+*.pyo
+.pytest_cache/
+
+# --- IDE & OS FILES ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- MODEL CONFIGS (Optional: Agar local save ho rahe hain) ---
+*_model_config.json

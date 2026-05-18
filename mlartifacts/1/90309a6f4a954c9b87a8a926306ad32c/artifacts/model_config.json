@@ -1,0 +1,87 @@
+{
+    "input_state": {
+        "schema_version": "1.2",
+        "request_id": "e1f9de5d-5e48-4218-b259-30d5774dc8c9",
+        "random_seed": 42,
+        "problem_type": "regression",
+        "data_type": "tabular",
+        "dataset_meta": {
+            "data_type": "tabular",
+            "num_samples": 5000,
+            "num_features": 6,
+            "num_classes": 1,
+            "input_shape": [
+                6
+            ],
+            "output_shape": [
+                1
+            ],
+            "missing_ratio": 0.0,
+            "n_severely_missing_features": 0,
+            "outlier_ratio": 0.0,
+            "target_type": "continuous",
+            "is_balanced": true,
+            "feature_type_breakdown": {
+                "continuous": 6,
+                "categorical": 0,
+                "date_cols_expanded": []
+            },
+            "correlation_structure": "low",
+            "noise_level": "high",
+            "complexity_tier": "low"
+        },
+        "model_spec": {
+            "output_dim": 1,
+            "activation": "linear",
+            "loss": "mse"
+        },
+        "constraints": {
+            "latency": "low",
+            "training_time": "short",
+            "compute": "gpu",
+            "max_inference_ms": null,
+            "max_training_epochs": null,
+            "deployment_target": "server_gpu",
+            "max_model_size_mb": 1000.0,
+            "memory_budget_gb": null
+        },
+        "objective": {
+            "priority": "balanced",
+            "primary_metric": "rmse",
+            "secondary_metric": null,
+            "optuna_direction": "minimize",
+            "min_acceptable_score": null
+        },
+        "preferences": {
+            "model_complexity": "low",
+            "interpretability": "not_required"
+        },
+        "arch_hints": {
+            "preferred_optimizer": null,
+            "preferred_loss": null,
+            "arch_family_override": null
+        },
+        "data_expectations": {
+            "handle_noise": true,
+            "handle_imbalance": false,
+            "handle_high_missing": false
+        }
+    },
+    "best_params": {
+        "optimizer": "adamw",
+        "beta1": 0.9094716423781185,
+        "learning_rate": 0.002876842888238519,
+        "batch_size": 128,
+        "epochs": 58,
+        "early_stopping_patience": 6,
+        "grad_clip": 0.6690820329591345,
+        "scheduler": "cosine",
+        "weight_init": "kaiming",
+        "weight_decay": 0.002752573884732149,
+        "num_hidden_layers": 1,
+        "n_units_l0": 117,
+        "activation_l0": "linear",
+        "dropout_l0": 0.388060835962433,
+        "use_bn_l0": true
+    }
+}

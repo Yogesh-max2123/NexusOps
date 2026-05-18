@@ -1,0 +1,91 @@
+{
+    "input_state": {
+        "schema_version": "1.2",
+        "request_id": "a3a92274-75e1-443b-9587-0ccb835061da",
+        "random_seed": 42,
+        "problem_type": "regression",
+        "data_type": "tabular",
+        "dataset_meta": {
+            "data_type": "tabular",
+            "num_samples": 5000,
+            "num_features": 6,
+            "num_classes": 1,
+            "input_shape": [
+                6
+            ],
+            "output_shape": [
+                1
+            ],
+            "missing_ratio": 0.0,
+            "n_severely_missing_features": 0,
+            "outlier_ratio": 0.0,
+            "target_type": "continuous",
+            "is_balanced": true,
+            "feature_type_breakdown": {
+                "continuous": 6,
+                "categorical": 0,
+                "date_cols_expanded": []
+            },
+            "correlation_structure": "low",
+            "noise_level": "high",
+            "complexity_tier": "low"
+        },
+        "model_spec": {
+            "output_dim": 1,
+            "activation": "linear",
+            "loss": "mse"
+        },
+        "constraints": {
+            "latency": "medium",
+            "training_time": "short",
+            "compute": "gpu",
+            "max_inference_ms": null,
+            "max_training_epochs": null,
+            "deployment_target": "server_gpu",
+            "max_model_size_mb": 1000.0,
+            "memory_budget_gb": null
+        },
+        "objective": {
+            "priority": "balanced",
+            "primary_metric": "rmse",
+            "secondary_metric": null,
+            "optuna_direction": "minimize",
+            "min_acceptable_score": null
+        },
+        "preferences": {
+            "model_complexity": "low",
+            "interpretability": "not_required"
+        },
+        "arch_hints": {
+            "preferred_optimizer": null,
+            "preferred_loss": null,
+            "arch_family_override": null
+        },
+        "data_expectations": {
+            "handle_noise": true,
+            "handle_imbalance": false,
+            "handle_high_missing": false
+        }
+    },
+    "best_params": {
+        "optimizer": "adam",
+        "beta1": 0.8549288685140353,
+        "learning_rate": 0.00020373726361687657,
+        "batch_size": 64,
+        "epochs": 77,
+        "early_stopping_patience": 7,
+        "grad_clip": 2.400621701874538,
+        "scheduler": "none",
+        "weight_init": "xavier",
+        "weight_decay": 6.071785112130555e-05,
+        "num_hidden_layers": 2,
+        "n_units_l0": 93,
+        "activation_l0": "relu",
+        "dropout_l0": 0.284569380498395,
+        "use_bn_l0": false,
+        "n_units_l1": 75,
+        "activation_l1": "gelu",
+        "dropout_l1": 0.45276068387687773,
+        "use_bn_l1": false
+    }
+}

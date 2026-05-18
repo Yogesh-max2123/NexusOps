@@ -1,0 +1,9 @@
+DynamicMLP(
+  (network): Sequential(
+    (0): Linear(in_features=6, out_features=59, bias=True)
+    (1): BatchNorm1d(59, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): Tanh()
+    (3): Dropout(p=0.21263976703226015, inplace=False)
+    (4): Linear(in_features=59, out_features=1, bias=True)
+  )
+)

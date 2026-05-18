@@ -1,0 +1,11 @@
+DynamicMLP(
+  (network): Sequential(
+    (0): Linear(in_features=6, out_features=93, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.284569380498395, inplace=False)
+    (3): Linear(in_features=93, out_features=75, bias=True)
+    (4): GELU(approximate='none')
+    (5): Dropout(p=0.45276068387687773, inplace=False)
+    (6): Linear(in_features=75, out_features=1, bias=True)
+  )
+)

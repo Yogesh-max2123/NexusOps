@@ -1,0 +1,15 @@
+# Environments
+.env
+__pycache__/
+*.pyc
+
+# Datasets
+*.csv
+*.xlsx
+
+# Exported ML Models
+*.pth
+*.json
+
+# Optuna databases (if any)
+*.db
