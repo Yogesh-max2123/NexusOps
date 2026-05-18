@@ -177,9 +177,13 @@ class MLOpsTracker:
         if not self.run_id:
             return None
         
-        
+        import os
         experiment_id = mlflow.get_experiment_by_name(self.experiment_name).experiment_id
-        return f"http://127.0.0.1:5000/#/experiments/{experiment_id}/runs/{self.run_id}"
+        # Base URL nikalo (with fallback to localhost)
+        base_mlflow_url = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000").rstrip('/')
+        
+        # Dynamic URL return karo
+        return f"{base_mlflow_url}/#/experiments/{experiment_id}/runs/{self.run_id}"
 
 
 class MLOpsRemoteLogger:

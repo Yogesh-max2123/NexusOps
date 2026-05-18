@@ -292,13 +292,20 @@ async def get_mlflow_dashboard(
     if not mlflow_run_id:
         raise HTTPException(status_code=400, detail="MLflow tracking data not found for this submission")
     
-    mlflow_url = f"http://127.0.0.1:5000/#/experiments/0/runs/{mlflow_run_id}"
+    import os
+    
+    # Base URL dynamic tareeqe se nikalenge
+    base_mlflow_url = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000").rstrip('/')
+    
+    # Ab localhost ki jagah base_mlflow_url variable use karenge
+    mlflow_url = f"{base_mlflow_url}/#/experiments/0/runs/{mlflow_run_id}"
+    
     logger.info(f"Returning MLflow dashboard for {submission_id}")
     
     return {
         "mlflow_run_id": mlflow_run_id,
         "dashboard_url": mlflow_url,
-        "local_tracking_uri": "http://127.0.0.1:5000",
+        "local_tracking_uri": os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"),
         "message": "Click dashboard_url to view training metrics, curves, and artifacts"
     }
     

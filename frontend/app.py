@@ -5,7 +5,8 @@ import io
 import plotly.graph_objects as go  
 import time
 
-API_URL = "http://localhost:8000"
+import os
+API_URL = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="NexusOps Hub", page_icon="⚡", layout="wide")
 
@@ -444,60 +445,92 @@ else:
                                     if t_res.status_code == 200:
                                         st.toast("🚀 Training Request Sent!")
                                         
-                                        
                                         progress_bar = st.progress(5, text="Starting MLOps Pipeline...")
+                                        
+                                        # Naye placeholders Live Timer aur Messages ke liye
+                                        timer_placeholder = st.empty()
                                         status_message = st.empty()
-
                                         
                                         import time
                                         is_training = True
+                                        start_time = time.time() # Training ka start time note kiya
+                                        last_api_call_time = 0   # Track karenge aakhiri baar API kab bulai
+                                        
+                                        # Backend states track karne ke liye variables
+                                        current_status = "pending"
+                                        epochs_done = 0
                                         
                                         while is_training:
-                                            try:
-                                              
-                                                check_res = requests.get(f"{API_URL}/submit/{sub_id}/live-metrics", headers=get_headers())
-
-                                                if check_res.status_code == 200:
-                                                    data = check_res.json()
-                                                    current_status = data.get("status", "pending")
-                                                    epochs_done = len(data.get("epochs", []))
-
+                                            # 1. LIVE STOPWATCH & TIME CALCULATION (Har loop me update hoga)
+                                            elapsed_seconds = int(time.time() - start_time)
+                                            mins, secs = divmod(elapsed_seconds, 60)
+                                            timer_placeholder.markdown(f"### ⏱️ Time Elapsed: **{mins}m {secs}s**")
+                                            
+                                            # 2. SMART INTERACTIVE MESSAGES (Time aur Status ke hisaab se)
+                                            if current_status == "pending":
+                                                progress_bar.progress(15, text="⏳ Step 1/3: Queued in Server...")
+                                                status_message.info("Waiting for Celery worker to pick up the task...")
+                                                
+                                            elif current_status in ["in_progress", "training"]:
+                                                if epochs_done == 0:
+                                                    progress_bar.progress(40, text="⚙️ Step 2/3: Running Optuna Hyperparameter Trials...")
                                                     
-                                                    if current_status == "pending":
-                                                        progress_bar.progress(15, text="⏳ Step 1/3: Queued in Server...")
-                                                        status_message.info("Waiting for Celery worker to pick up the task...")
-
+                                                    # TIME-AWARE OPTUNA MESSAGES (The Magic Trick)
+                                                    if elapsed_seconds < 60:
+                                                        status_message.warning("Testing multiple AI architectures to find the best one. (Usually takes 1-2 mins)...")
+                                                    elif elapsed_seconds < 150: # 2.5 Mins
+                                                        status_message.warning("Still testing architectures. Finding the global minimum loss...")
+                                                    elif elapsed_seconds < 300: # 5 Mins
+                                                        status_message.info("💡 This seems to be a heavy dataset! The Optuna engine is doing deep analysis. Grab a coffee ☕...")
+                                                    elif elapsed_seconds < 600: # 10 Mins
+                                                        status_message.info("🔥 We are working hard! Searching through hundreds of hidden layer combinations. Please hold tight...")
+                                                    else:
+                                                        status_message.info("🐢 The dataset is massive! Workers are crunching the final layers. Thanks for your patience...")
+                                                else:
+                                                    progress_bar.progress(75, text=f"🧠 Step 3/3: Final Training (Epoch {epochs_done} done)...")
+                                                    status_message.info(f"Best architecture found! Training final production model... (Epoch {epochs_done} recorded)")
                                                     
-                                                    elif current_status in ["in_progress", "training"]:
-                                                        if epochs_done == 0:
-                                                            
-                                                            progress_bar.progress(40, text="⚙️ Step 2/3: Running Optuna Hyperparameter Trials...")
-                                                            status_message.warning("Testing multiple AI architectures to find the best one. (This takes ~1-2 mins)...")
-                                                        else:
-                                                           
-                                                            progress_bar.progress(75, text=f"🧠 Step 3/3: Final Training (Epoch {epochs_done} done)...")
-                                                            status_message.info("Best architecture found! Training final production model...")
+                                            elif current_status == "completed":
+                                                progress_bar.progress(100, text="✅ Training Completely Finished!")
+                                                timer_placeholder.empty() # Timer hata do completion pe
+                                                status_message.success("🎉 Model trained successfully! Switch to the 'Training Metrics' tab (Tab 3) to view AI Insights and Graphs.")
+                                                st.balloons() 
+                                                is_training = False
+                                                time.sleep(3) 
+                                                st.rerun() 
+                                                
+                                            elif current_status in ["failed", "error"]:
+                                                progress_bar.empty()
+                                                timer_placeholder.empty()
+                                                status_message.error("❌ Training failed! Please check backend terminal logs.")
+                                                is_training = False
 
-                                                    
-                                                    elif current_status == "completed":
-                                                        progress_bar.progress(100, text="✅ Training Completely Finished!")
-                                                        status_message.success("🎉 Model trained successfully! Switch to the 'Training Metrics' tab (Tab 3) to view AI Insights and Graphs.")
-                                                        st.balloons() 
-                                                        is_training = False
-                                                        time.sleep(3) 
-                                                        st.rerun() 
+                                            # 3. BACKEND API CALL (Har 5 second me ek baar karenge)
+                                            # 3. BACKEND API CALL (Har 5 second me ek baar karenge)
+                                            if is_training and (time.time() - last_api_call_time) >= 5:
+                                                try:
+                                                    # 🔥 MAGIC FIX: Added 'timeout=2' to prevent UI freezing!
+                                                    check_res = requests.get(
+                                                        f"{API_URL}/submit/{sub_id}/live-metrics", 
+                                                        headers=get_headers(),
+                                                        timeout=2
+                                                    )
+                                                    if check_res.status_code == 200:
+                                                        data = check_res.json()
+                                                        current_status = data.get("status", "pending")
+                                                        epochs_done = len(data.get("epochs", []))
+                                                
+                                                except requests.exceptions.Timeout:
+                                                    # Agar backend busy hai, toh UI freeze nahi hoga
+                                                    pass 
+                                                except Exception as e:
+                                                    pass # Baaki errors chupchap ignore karenge
+                                                
+                                                last_api_call_time = time.time() # Update API call time
 
-                                                    
-                                                    elif current_status in ["failed", "error"]:
-                                                        progress_bar.empty()
-                                                        status_message.error("❌ Training failed! Please check backend terminal logs.")
-                                                        is_training = False
-
-                                            except Exception as e:
-                                                pass 
-
+                                            # 4. SLEEP FOR 1 SECOND (Jisse Stopwatch smooth chale)
                                             if is_training:
-                                                time.sleep(3)
+                                                time.sleep(1)
                                                 
                                     else:
                                         st.error(f"Error starting training: {t_res.text}")

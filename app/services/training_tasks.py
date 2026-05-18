@@ -77,7 +77,8 @@ def run_optuna_trials_task(study_name, csv_path, target_col, final_space, n_tria
     from Model_Training.OptunaOptimizer.MLP import create_objective
     from optuna.storages import JournalStorage, JournalRedisStorage
 
-    redis_url = "redis://localhost:6379/1"
+    import os
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     storage = JournalStorage(JournalRedisStorage(redis_url))
     
     
@@ -125,7 +126,8 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
 
     logger.info("[STEP 1/6] Connecting to Optuna Redis Storage to fetch best parameters...")
     try:
-        redis_url = "redis://localhost:6379/1"
+        import os
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         storage = JournalStorage(JournalRedisStorage(redis_url))
         study = optuna.load_study(study_name=study_name, storage=storage)
         best_params = study.best_params
@@ -366,6 +368,7 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
             logger.info("✅ BINGO! MongoDB Status successfully updated to 'completed'!")
             
         client.close()
+        
         
         logger.info(f"\n[{submission_id}] <<< PIPELINE COMPLETION SUCCESSFUL >>>")
         return "SUCCESS: Pipeline Complete"

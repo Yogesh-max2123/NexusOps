@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware  # ✅ ADD THIS
 from contextlib import asynccontextmanager
 from app.database.mongodb import connect_to_mongo, close_mongo_connection
 from app.routes.auth_routes import router as auth_router
@@ -9,10 +10,8 @@ from app.routes import metrics_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
     await connect_to_mongo()
     yield
-    
     await close_mongo_connection()
 
 app = FastAPI(
@@ -22,9 +21,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# ✅ ADD THIS ENTIRE CORS BLOCK
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (Streamlit Cloud, localhost, everywhere)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
+
 app.include_router(auth_routes.router, prefix="/auth", tags=["Authentication"])
 app.include_router(submission_routes.router, prefix="/submit", tags=["Submissions"])
-app.include_router(metrics_routes.router, prefix="/submit", tags=["Metrics"])  # ✅ ADD THIS
+app.include_router(metrics_routes.router, prefix="/submit", tags=["Metrics"])  
 
 @app.get("/")
 async def root():

@@ -4,7 +4,8 @@ import pandas as pd
 import io
 import plotly.graph_objects as go  # Added missing import for graphs to prevent crash
 import time
-API_URL = "http://localhost:8000"
+import os
+API_URL = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="Dataset Hub", page_icon="🚀", layout="wide")
 
