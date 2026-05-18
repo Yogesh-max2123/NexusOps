@@ -2,3 +2,5 @@ streamlit
 requests
 pandas
 python-dotenv
+plotly
+streamlit-cookies-controller
