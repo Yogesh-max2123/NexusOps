@@ -79,7 +79,9 @@ def run_optuna_trials_task(study_name, csv_path, target_col, final_space, n_tria
 
     import os
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    storage = JournalStorage(JournalRedisStorage(redis_url))
+    # Celery wala '?ssl_cert_reqs=CERT_NONE' flag hata kar clean URL banate hain
+    clean_redis_url = redis_url.split('?')[0]  
+    storage = JournalStorage(JournalRedisStorage(clean_redis_url))
     
     
     study = optuna.create_study(study_name=study_name, storage=storage, direction="minimize", load_if_exists=True)
@@ -128,7 +130,9 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
     try:
         import os
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        storage = JournalStorage(JournalRedisStorage(redis_url))
+        clean_redis_url = redis_url.split('?')[0]
+        storage = JournalStorage(JournalRedisStorage(clean_redis_url))
+        
         study = optuna.load_study(study_name=study_name, storage=storage)
         best_params = study.best_params
         logger.info(f"Best parameters fetched successfully: {len(best_params)} keys found.")
