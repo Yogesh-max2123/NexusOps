@@ -70,8 +70,10 @@ def run_optuna_trials_task(study_name, csv_url, target_col, final_space, n_trial
     import os
     import urllib.request
     import optuna
+    import torch
     from dotenv import load_dotenv
     
+    torch.set_num_threads(1)
     # Worker ke andar file download karwao
     local_csv_path = f"{study_name}_dataset.csv"
     urllib.request.urlretrieve(csv_url, local_csv_path)

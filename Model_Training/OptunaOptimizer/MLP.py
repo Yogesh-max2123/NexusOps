@@ -142,7 +142,7 @@ def create_objective(X_train, y_train, X_val, y_val, input_state, final_space):
         criterion = nn.MSELoss()
 
         train_dataset = TensorDataset(X_train_t, y_train_t)
-        train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True,drop_last=True)
+        train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True,drop_last=True,num_workers=0)
 
         if params["optimizer"] == "adam":
             optimizer = optim.Adam(model.parameters(), lr=params["learning_rate"],
