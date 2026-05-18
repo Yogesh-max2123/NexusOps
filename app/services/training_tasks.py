@@ -119,16 +119,38 @@ def run_optuna_trials_task(study_name, csv_url, target_col, final_space, n_trial
     return f"Completed {n_trials} trials using {n_workers} workers"
 
 
+from celery import shared_task
+import time
+import json
+import torch
+import torch.nn as nn
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
 # TASK B: FINALIZE TRAINING & GENERATE AI INSIGHTS
 @shared_task(name="finalize_model_training_task")
-def finalize_model_training_task(results, study_name, csv_path, target_col, submission_id):
+def finalize_model_training_task(results, study_name, csv_url, target_col, submission_id): # <-- CHANGED TO csv_url
     """TASK B: Final Training, Feature Importance, and Saving"""
     logger.info(f"\n[{submission_id}] >>> STARTING FINALIZATION TASK <<<")
     start_time = time.time()
     
     import os  
+    import urllib.request
     from dotenv import load_dotenv
     
+    # --- OOM PROTECTION ---
+    torch.set_num_threads(1)
+    
+    # --- DOWNLOAD DATASET FROM CLOUDINARY ---
+    local_csv_path = f"{study_name}_final_dataset.csv"
+    try:
+        urllib.request.urlretrieve(csv_url, local_csv_path)
+        logger.info(f"Dataset successfully downloaded to {local_csv_path}")
+    except Exception as e:
+        logger.error(f"[FATAL ERROR] Could not download dataset from URL: {e}")
+        return "FAILED AT DOWNLOAD"
     
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
@@ -136,11 +158,11 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
     from Model_Training.OptunaOptimizer.Train import train_and_evaluate_final_model
     from Model_Training.ML_Pipeline.InputState import InputStateBuilder
     from Model_Training.ML_Pipeline.PrepareDataset import prepare_datasets
+    import optuna
     from optuna.storages import JournalStorage, JournalRedisStorage
 
     logger.info("[STEP 1/6] Connecting to Optuna Redis Storage to fetch best parameters...")
     try:
-        import os
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         clean_redis_url = redis_url.split('?')[0]
         storage = JournalStorage(JournalRedisStorage(clean_redis_url))
@@ -156,13 +178,13 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
     try:
         state_builder = InputStateBuilder(api_key=api_key)
         input_state = state_builder.build(
-            dataset_path=csv_path, 
+            dataset_path=local_csv_path, # <-- FIXED PATH
             use_case="dummy", 
             user_text="dummy", 
             target_col=target_col
         )
         
-        X_train, X_val, X_test, y_train, y_val, y_test, scaler_y = prepare_datasets(csv_path, target_col)
+        X_train, X_val, X_test, y_train, y_val, y_test, scaler_y = prepare_datasets(local_csv_path, target_col) # <-- FIXED PATH
         logger.info(f"Data ready. Train shape: {X_train.shape}, Test shape: {X_test.shape}")
     except Exception as e:
         logger.error(f"[FATAL ERROR] Step 2 Failed - Data prep issue: {e}")
@@ -195,7 +217,7 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
             feat_names = input_state.get('preprocessed_feature_names', [])
             if not feat_names:
                 try:
-                    df_temp = pd.read_csv(csv_path)
+                    df_temp = pd.read_csv(local_csv_path) # <-- FIXED PATH (This would have crashed!)
                     cols = [c for c in df_temp.columns if c != target_col]
                     feat_names = cols if len(cols) == X_test.shape[1] else [f"Feature_{i}" for i in range(X_test.shape[1])]
                 except:
@@ -248,7 +270,6 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
         top_features = list(feature_importance_dict.items())[:3]
         feat_str = ", ".join([f"{k} ({v*100:.0f}%)" for k, v in top_features])
         
-        
         use_case = input_state.get("use_case", "Predicting target variable based on provided dataset.")
         
         prompt = f"""
@@ -273,8 +294,6 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
         """
 
         import requests
-        import json
-        import os
         
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -284,7 +303,6 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
         payload = {
             "contents": [{"parts": [{"text": prompt}]}]
         }
-        
         
         resp = requests.post(gemini_url, json=payload, timeout=15)
         resp.raise_for_status()
@@ -312,6 +330,8 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
         )
 
     logger.info("[STEP 6/6] Saving Config to Disk and Syncing to MongoDB...")
+    model_save_path = ""
+    config_save_path = ""
     try:
         safe_name = target_col.replace(" ", "_").lower()
         model_save_path = f"{safe_name}_best_model.pth"
@@ -345,13 +365,9 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
         logger.info("[STEP 6/6] Pushing updates to MongoDB Atlas (Synchronous Mode)...")
         from pymongo import MongoClient
         from bson import ObjectId
-        import os
-        from dotenv import load_dotenv
         
-    
         root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
         load_dotenv(os.path.join(root_dir, ".env"), override=True)
-        
         
         mongo_uri = os.getenv("MONGODB_URL") 
         
@@ -359,15 +375,12 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
             logger.error(" CRITICAL: MONGODB_URL not found! Celery is blind.")
             return "FAILED - NO DB URL"
             
-        
         client = MongoClient(mongo_uri)
-        
         db = client["modelsmith"] 
             
         with open(model_save_path, "rb") as f:
             model_bytes = f.read()
             
-        
         result = db["submissions"].update_one(
             {"_id": ObjectId(submission_id)},
             {"$set": {
@@ -377,17 +390,27 @@ def finalize_model_training_task(results, study_name, csv_path, target_col, subm
             }}
         )
         
-        
         if result.matched_count == 0:
             logger.error(f" CRITICAL ALERT: Connected to Atlas 'modelsmith', but ID {submission_id} NOT FOUND!")
         else:
             logger.info("✅ BINGO! MongoDB Status successfully updated to 'completed'!")
             
         client.close()
-        
-        
         logger.info(f"\n[{submission_id}] <<< PIPELINE COMPLETION SUCCESSFUL >>>")
-        return "SUCCESS: Pipeline Complete"
+        
     except Exception as e:
         logger.error(f"[FATAL ERROR] Step 6 Failed - Storage or DB sync crashed: {e}")
         return "FAILED AT STEP 6"
+
+    # --- CLOUD DISK CLEANUP (Prevents Free Tier Disk Full Error) ---
+    finally:
+        logger.info("Cleaning up temporary local artifacts to save disk space...")
+        try:
+            if os.path.exists(local_csv_path): os.remove(local_csv_path)
+            if model_save_path and os.path.exists(model_save_path): os.remove(model_save_path)
+            if config_save_path and os.path.exists(config_save_path): os.remove(config_save_path)
+            logger.info("Cleanup successful. Ready for next task.")
+        except Exception as cleanup_err:
+            logger.error(f"Could not delete some local files: {cleanup_err}")
+            
+    return "SUCCESS: Pipeline Complete"

@@ -147,9 +147,8 @@ async def run_training_pipeline(submission_id: str, service: SubmissionService, 
         for _ in range(num_workers)
         ]
         
-        
-        callback_task = finalize_model_training_task.s(study_name, local_csv_path, target, submission_id)
-        
+
+        callback_task = finalize_model_training_task.s(study_name, csv_url, target, submission_id)
         
         chord(parallel_tasks)(callback_task)
         
