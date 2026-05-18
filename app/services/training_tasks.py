@@ -62,13 +62,20 @@ async def async_save_to_mongodb(submission_id, target_col, model_bytes, config, 
 
 # TASK A: RUN OPTUNA TRIALS
 
+from celery import shared_task
+
 @shared_task(name="run_optuna_trials_task")
-def run_optuna_trials_task(study_name, csv_path, target_col, final_space, n_trials=5, n_workers=1): 
+def run_optuna_trials_task(study_name, csv_url, target_col, final_space, n_trials=5, n_workers=1): 
     """TASK A: Distributed Optuna Worker"""
     import os
+    import urllib.request
+    import optuna
     from dotenv import load_dotenv
     
-     
+    # Worker ke andar file download karwao
+    local_csv_path = f"{study_name}_dataset.csv"
+    urllib.request.urlretrieve(csv_url, local_csv_path)
+    
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -77,18 +84,16 @@ def run_optuna_trials_task(study_name, csv_path, target_col, final_space, n_tria
     from Model_Training.OptunaOptimizer.MLP import create_objective
     from optuna.storages import JournalStorage, JournalRedisStorage
 
-    import os
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     # Celery wala '?ssl_cert_reqs=CERT_NONE' flag hata kar clean URL banate hain
     clean_redis_url = redis_url.split('?')[0]  
     storage = JournalStorage(JournalRedisStorage(clean_redis_url))
     
-    
     study = optuna.create_study(study_name=study_name, storage=storage, direction="minimize", load_if_exists=True)
     
     state_builder = InputStateBuilder(api_key=api_key)
     input_state = state_builder.build(
-        dataset_path=csv_path, 
+        dataset_path=local_csv_path,  # Fix: Used local_csv_path here
         use_case="dummy", 
         user_text="dummy", 
         target_col=target_col
@@ -96,14 +101,19 @@ def run_optuna_trials_task(study_name, csv_path, target_col, final_space, n_tria
     
     input_state["search_space"] = final_space
     
-    X_train, X_val, X_test, y_train, y_val, y_test, scaler_y = prepare_datasets(csv_path, target_col)
-    
+    # Fix: Used local_csv_path here too
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler_y = prepare_datasets(local_csv_path, target_col) 
     
     study.optimize(
         create_objective(X_train, y_train, X_val, y_val, input_state, final_space), 
         n_trials=n_trials,
         n_jobs=n_workers  
     )
+    
+    # Cleanup: (Optional but recommended) Delete the file after training to save space
+    if os.path.exists(local_csv_path):
+        os.remove(local_csv_path)
+        
     return f"Completed {n_trials} trials using {n_workers} workers"
 
 

@@ -143,8 +143,8 @@ async def run_training_pipeline(submission_id: str, service: SubmissionService, 
         )
         
         parallel_tasks = [
-            run_optuna_trials_task.s(study_name, local_csv_path, target, final_space, trials_per_worker) 
-            for _ in range(num_workers)
+        run_optuna_trials_task.s(study_name, csv_url, target, final_space, trials_per_worker) 
+        for _ in range(num_workers)
         ]
         
         
