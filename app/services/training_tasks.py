@@ -129,28 +129,50 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# TASK B: FINALIZE TRAINING & GENERATE AI INSIGHTS
 @shared_task(name="finalize_model_training_task")
-def finalize_model_training_task(results, study_name, csv_url, target_col, submission_id): # <-- CHANGED TO csv_url
+def finalize_model_training_task(results, study_name, incoming_path, target_col, submission_id):
     """TASK B: Final Training, Feature Importance, and Saving"""
     logger.info(f"\n[{submission_id}] >>> STARTING FINALIZATION TASK <<<")
     start_time = time.time()
     
     import os  
     import urllib.request
+    import shutil
     from dotenv import load_dotenv
+    from pymongo import MongoClient
+    from bson import ObjectId
     
     # --- OOM PROTECTION ---
     torch.set_num_threads(1)
     
-    # --- DOWNLOAD DATASET FROM CLOUDINARY ---
     local_csv_path = f"{study_name}_final_dataset.csv"
+    incoming_path_str = str(incoming_path).strip()
+    
     try:
-        urllib.request.urlretrieve(csv_url, local_csv_path)
-        logger.info(f"Dataset successfully downloaded to {local_csv_path}")
+        if incoming_path_str.startswith("http"):
+            logger.info("Detected Web URL. Downloading...")
+            urllib.request.urlretrieve(incoming_path_str, local_csv_path)
+        else:
+            logger.info("Detected Local Path.")
+            if os.path.exists(incoming_path_str):
+                shutil.copy(incoming_path_str, local_csv_path)
+            else:
+                logger.warning("Local file missing! Rescuing via DB URL...")
+                load_dotenv(override=True)
+                client = MongoClient(os.getenv("MONGODB_URL"))
+                sub = client["modelsmith"]["submissions"].find_one({"_id": ObjectId(submission_id)})
+                client.close()
+                db_url = sub.get("dataset_url", "")
+                if db_url.startswith("http"):
+                    urllib.request.urlretrieve(db_url, local_csv_path)
+                else:
+                    return "FAILED AT DOWNLOAD"
     except Exception as e:
-        logger.error(f"[FATAL ERROR] Could not download dataset from URL: {e}")
+        logger.error(f"[FATAL ERROR] Path Resolver Crashed: {e}")
         return "FAILED AT DOWNLOAD"
+        
+    # --- Yahan se aapka code normal (Step 1) chalu hoga ---
+    # (Sirf dhyaan rakhna har jagah local_csv_path use ho)
     
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
