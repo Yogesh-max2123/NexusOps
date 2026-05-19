@@ -345,10 +345,16 @@ else:
         st.markdown("### 📤 Upload Your Dataset & Requirements")
         st.write("Fill out the details below to define the architecture and expectations you have from the model.")
         
+        import streamlit as st
+        import requests
+        import re  
+
         with st.container():
             with st.form("submission_form", border=True):
                 dataset_file = st.file_uploader("Upload Dataset (CSV limits apply)", type=["csv", "txt"])
+                
                 target_column = st.text_input("🎯 Target Column Name", placeholder="e.g. Sales, Price, Quality")
+                
                 use_case = st.text_area("💼 Use Case Description", placeholder="Describe the business scenario where this model will be used.")
                 requirement = st.text_area("📋 Specific Requirements", placeholder="List any particular nuances needed in the model output or architecture.")
                 
@@ -360,22 +366,30 @@ else:
                     else:
                         with st.spinner("⏳ Uploading directly to Cloudinary and securing metadata... (this may take a few moments)"):
                             
+                           
+                            formatted_target = target_column.strip().lower()
+                            formatted_target = re.sub(r'\s+', '_', formatted_target)
+                            
                             files = {"dataset": (dataset_file.name, dataset_file, dataset_file.type)}
+                            
+                            
                             data = {
-                                "target_column": target_column,
+                                "target_column": formatted_target, 
                                 "use_case": use_case,
                                 "requirement": requirement
                             }
                             
                             try:
-                                
+                               
                                 res = requests.post(f"{API_URL}/submit/", headers=get_headers(), files=files, data=data)
+                                
                                 if res.status_code == 200:
                                     st.success("🎉 Successfully submitted request! Your dataset is backed up securely to Cloudinary.")
                                     st.json(res.json())
                                     st.balloons()
                                 else:
                                     st.error(f"❌ Error submitting request: {res.text}")
+                                    
                             except requests.exceptions.ConnectionError:
                                 st.error("🔌 Could not connect to the Backend API. Ensure it is running on port 8000.")
 
